@@ -1,0 +1,41 @@
+spring:
+
+  application:
+    name: identity-service
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/identity_db
+    username: careerhub
+    password: careerhub_dev
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+
+    open-in-view: false
+
+    properties:
+      hibernate:
+        format_sql: true
+
+  flyway:
+    enabled: true
+
+server:
+  port: 8081
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include:
+          - health
+          - info
+
+careerhub:
+  security:
+    jwt:
+      issuer: http://localhost:8081
+      access-token-expiration: 900
+      refresh-token-expiration: 2592000
