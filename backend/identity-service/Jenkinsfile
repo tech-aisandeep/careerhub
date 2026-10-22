@@ -1,0 +1,89 @@
+pipeline {
+
+    agent any
+
+    tools {
+        jdk 'jdk21'
+        maven 'maven3.9'
+    }
+
+    options {
+        timestamps()
+        disableConcurrentBuilds()
+        buildDiscarder(
+            logRotator(
+                numToKeepStr: '20'
+            )
+        )
+    }
+
+    environment {
+        SERVICE_NAME = 'identity-service'
+    }
+
+    stages {
+
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Build') {
+            steps {
+                dir('backend/identity-service') {
+                    bat 'mvn -B clean compile'
+                }
+            }
+        }
+
+        stage('Unit & Integration Tests') {
+            steps {
+                dir('backend/identity-service') {
+                    bat 'mvn -B test'
+                }
+            }
+
+            post {
+                always {
+                    junit(
+                        testResults:
+                            'backend/identity-service/target/surefire-reports/*.xml',
+                        allowEmptyResults: true
+                    )
+                }
+            }
+        }
+
+        stage('Verify & Coverage') {
+            steps {
+                dir('backend/identity-service') {
+                    bat 'mvn -B verify'
+                }
+            }
+        }
+
+        stage('Package') {
+            steps {
+                dir('backend/identity-service') {
+                    bat 'mvn -B package -DskipTests'
+                }
+            }
+        }
+    }
+
+    post {
+
+        success {
+            echo "✅ ${SERVICE_NAME} CI pipeline completed successfully."
+        }
+
+        failure {
+            echo "❌ ${SERVICE_NAME} CI pipeline failed."
+        }
+
+        always {
+            echo "Pipeline finished."
+        }
+    }
+}
