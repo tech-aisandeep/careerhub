@@ -1,5 +1,5 @@
-pipeline {
 
+pipeline {
     agent any
 
     tools {
@@ -11,9 +11,7 @@ pipeline {
         timestamps()
         disableConcurrentBuilds()
         buildDiscarder(
-            logRotator(
-                numToKeepStr: '20'
-            )
+            logRotator(numToKeepStr: '20')
         )
     }
 
@@ -22,7 +20,6 @@ pipeline {
     }
 
     stages {
-
         stage('Checkout') {
             steps {
                 checkout scm
@@ -43,12 +40,10 @@ pipeline {
                     bat 'mvn -B test'
                 }
             }
-
             post {
                 always {
                     junit(
-                        testResults:
-                            'backend/identity-service/target/surefire-reports/*.xml',
+                        testResults: 'backend/identity-service/target/surefire-reports/*.xml',
                         allowEmptyResults: true
                     )
                 }
@@ -61,6 +56,14 @@ pipeline {
                     bat 'mvn -B verify'
                 }
             }
+            post {
+                always {
+                    archiveArtifacts(
+                        artifacts: 'backend/identity-service/target/site/jacoco/**',
+                        allowEmptyArchive: true
+                    )
+                }
+            }
         }
 
         stage('Package') {
@@ -69,21 +72,44 @@ pipeline {
                     bat 'mvn -B package -DskipTests'
                 }
             }
+            post {
+                success {
+                    archiveArtifacts(
+                        artifacts: 'backend/identity-service/target/*.jar',
+                        allowEmptyArchive: false
+                    )
+                }
+            }
+        }
+
+        stage('SonarQube Analysis') {
+            steps {
+                dir('backend/identity-service') {
+                    withSonarQubeEnv('SonarQube-Local') {
+                        bat 'mvn -B org.sonarsource.scanner.maven:sonar-maven-plugin:sonar'
+                    }
+                }
+            }
+        }
+
+        stage('Quality Gate') {
+            steps {
+                timeout(time: 5, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
+                }
+            }
         }
     }
 
     post {
-
         success {
-            echo "✅ ${SERVICE_NAME} CI pipeline completed successfully."
+            echo "${SERVICE_NAME} CI pipeline completed successfully."
         }
-
         failure {
-            echo "❌ ${SERVICE_NAME} CI pipeline failed."
+            echo "${SERVICE_NAME} CI pipeline failed."
         }
-
         always {
-            echo "Pipeline finished."
+            echo 'Pipeline finished.'
         }
     }
 }
